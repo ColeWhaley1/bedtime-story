@@ -1,0 +1,21 @@
+# Core AI / APIs
+anthropic>=0.40.0
+elevenlabs>=1.0.0
+openai-whisper>=20231117
+
+# Wake word (fully offline)
+openwakeword>=0.6.0
+
+# Audio capture
+pyaudio>=0.2.14
+
+# TTS fallback
+gTTS>=2.4.0
+
+# GPIO (Raspberry Pi only — omit on dev machines)
+gpiozero>=2.0
+
+# Utilities
+python-dotenv>=1.0.0
+numpy>=1.24.0
+requests>=2.31.0
