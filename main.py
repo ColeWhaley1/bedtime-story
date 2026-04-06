@@ -44,6 +44,7 @@ import config
 import gpio_button
 import intent_parser
 import story_generator
+import story_saver
 import tts
 import voice_input
 import wake_word
@@ -84,33 +85,35 @@ def _run_pipeline(ww_detector: wake_word.WakeWordDetector):
     audio_path: str | None = None
 
     try:
-        # 1. Signal that we're listening
-        logger.info("Pipeline: playing chime …")
-        audio_player.play_chime()
-
-        # 2. Record voice
+        # 1. Record voice — start immediately so we capture the full request
+        #    ("Hey storyteller, tell me a story about …")
         logger.info("Pipeline: recording …")
         wav_path = voice_input.record()
         if not wav_path:
             logger.warning("Pipeline: no audio recorded — aborting.")
             return
 
-        # 3. Transcribe
+        # 2. Transcribe
         transcription = voice_input.transcribe(wav_path)
         if not transcription:
             logger.warning("Pipeline: empty transcription — aborting.")
             return
 
-        # 4. Parse intent
+        # 3. Parse intent
         intent = intent_parser.parse(transcription)
         logger.info(
             "Pipeline: intent → %d words | themes: %r",
             intent.word_count, intent.themes,
         )
 
+        # 4. Chime confirms we understood the request and are now generating
+        logger.info("Pipeline: playing chime …")
+        audio_player.play_chime()
+
         # 5. Generate story
         logger.info("Pipeline: generating story …")
         story_text = story_generator.generate(intent)
+        story_saver.save(story_text, intent)
 
         # 6. Synthesize
         logger.info("Pipeline: synthesizing audio …")

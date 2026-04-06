@@ -25,7 +25,7 @@ WAKEWORD_THRESHOLD = float(os.getenv("WAKEWORD_THRESHOLD", "0.5"))
 RECORD_SAMPLE_RATE = 16000
 RECORD_CHANNELS = 1
 RECORD_CHUNK_SIZE = 1024
-RECORD_MAX_SECONDS = 8
+RECORD_MAX_SECONDS = 15
 RECORD_SILENCE_THRESHOLD = 500   # RMS below this = silence
 RECORD_SILENCE_DURATION = 1.5    # seconds of silence before stopping
 
@@ -37,6 +37,10 @@ STORY_LENGTH_LONG = 1500
 # Paths
 CHIME_PATH = os.path.join(os.path.dirname(__file__), "sounds", "chime.wav")
 RECORDING_PATH = "/tmp/recording.wav"
+STORIES_DIR = os.getenv(
+    "STORIES_DIR",
+    os.path.join(os.path.expanduser("~"), "Desktop", "Bedtime Stories"),
+)
 
 # Bluetooth connection
 BT_CONNECT_TIMEOUT = 10   # seconds to wait for BT connection

@@ -23,6 +23,13 @@ class StoryIntent:
 _SHORT_PATTERNS = re.compile(r"\b(short|quick|brief)\b", re.IGNORECASE)
 _LONG_PATTERNS  = re.compile(r"\b(long|longer|epic|extended)\b", re.IGNORECASE)
 
+# Strip wake word prefix — Whisper may transcribe it as "hey storyteller",
+# "hey story teller", "storyteller", etc.
+_WAKE_WORD = re.compile(
+    r"^(hey\s+story[\s\-]?teller|hey\s+storyteller|storyteller)[,\s]*",
+    re.IGNORECASE,
+)
+
 # Filler phrases to strip from the transcription before extracting themes
 _FILLER = re.compile(
     r"\b(tell me|give me|i want|i'd like|please|a story about|make it|"
@@ -49,6 +56,9 @@ def parse(transcription: str) -> StoryIntent:
             → StoryIntent(word_count=1000, themes="dragons and political intrigue in a dying empire")
     """
     text = transcription.strip()
+
+    # Strip wake word prefix before any other processing
+    text = _WAKE_WORD.sub("", text).strip()
 
     # Determine length
     if _SHORT_PATTERNS.search(text):
