@@ -7,6 +7,7 @@ WAKEWORD_THRESHOLD, it fires a callback on the main thread.
 
 Detection is paused during recording/playback to avoid false triggers.
 """
+import audioop
 import logging
 import threading
 import time
@@ -100,8 +101,12 @@ class WakeWordDetector:
                     time.sleep(0.05)
                     continue
 
-                # Convert raw bytes → int16 numpy array
-                audio_chunk = np.frombuffer(raw, dtype=np.int16)
+                # Resample from mic rate (44100) down to 16000 Hz that
+                # openWakeWord requires, then convert to int16 numpy array
+                resampled, _ = audioop.ratecv(
+                    raw, 2, 1, config.RECORD_SAMPLE_RATE, 16000, None
+                )
+                audio_chunk = np.frombuffer(resampled, dtype=np.int16)
 
                 try:
                     predictions = self._model.predict(audio_chunk)
