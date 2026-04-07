@@ -6,7 +6,8 @@ handle long outputs without HTTP timeouts.
 """
 import logging
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 import config
 from intent_parser import StoryIntent
@@ -35,11 +36,7 @@ def generate(intent: StoryIntent) -> str:
     Uses streaming so long stories don't hit HTTP timeouts.
     Raises on API errors.
     """
-    genai.configure(api_key=config.GEMINI_API_KEY)
-    model = genai.GenerativeModel(
-        model_name=config.GEMINI_MODEL,
-        system_instruction=SYSTEM_PROMPT,
-    )
+    client = genai.Client(api_key=config.GEMINI_API_KEY)
 
     user_prompt = USER_PROMPT_TEMPLATE.format(
         word_count=intent.word_count,
@@ -56,7 +53,13 @@ def generate(intent: StoryIntent) -> str:
     story_text = ""
 
     try:
-        for chunk in model.generate_content(user_prompt, stream=True):
+        for chunk in client.models.generate_content_stream(
+            model=config.GEMINI_MODEL,
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+            ),
+        ):
             if chunk.text:
                 story_text += chunk.text
 
