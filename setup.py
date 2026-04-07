@@ -3,7 +3,7 @@ One-time setup wizard for Bedtime Story.
 
 Run this before the first launch to:
   1. Discover nearby Bluetooth devices and save your speaker's MAC address
-  2. Browse ElevenLabs voices and select one suited to epic fantasy narration
+  2. Select a Kokoro TTS voice
   3. Generate sounds/chime.wav
 
 All selections are written to .env.
@@ -121,52 +121,32 @@ def _setup_bluetooth():
 
 
 # ---------------------------------------------------------------------------
-# Step 2: ElevenLabs voice
+# Step 2: Kokoro voice
 # ---------------------------------------------------------------------------
 
-_RECOMMENDED_VOICES = {
-    "Clyde":  "2EiwWnXFnvU5JabPnv8n",
-    "Arnold": "VR6AewLTigWG4xSOukaG",
-    "George": "JBFqnCBsd6RMkjVDRZzb",
+_KOKORO_VOICES = {
+    "bm_george": "British male — deep, dramatic (recommended for fantasy)",
+    "am_michael": "American male — deep",
+    "am_adam":   "American male",
+    "af_heart":  "American female — warm (default)",
+    "af_bella":  "American female — expressive",
+    "bf_emma":   "British female",
 }
 
-def _setup_elevenlabs_voice():
-    print("\n━━━ Step 2: ElevenLabs Voice ━━━")
+def _setup_kokoro_voice():
+    print("\n━━━ Step 2: Kokoro Voice ━━━")
+    print("\nAvailable voices:")
+    for name, desc in _KOKORO_VOICES.items():
+        print(f"  {name:<12} {desc}")
 
-    api_key = os.getenv("ELEVENLABS_API_KEY", "").strip()
-    if not api_key:
-        api_key = input("Enter your ElevenLabs API key (or press Enter to skip): ").strip()
-        if not api_key:
-            print("  Skipping voice setup.")
-            return
-        _write_env({"ELEVENLABS_API_KEY": api_key})
-        os.environ["ELEVENLABS_API_KEY"] = api_key
-
-    print("\nRecommended voices for epic fantasy narration:")
-    for name, vid in _RECOMMENDED_VOICES.items():
-        print(f"  {vid}  {name}")
-
-    print("\nFetching your available voices from ElevenLabs …")
-    try:
-        from elevenlabs.client import ElevenLabs  # type: ignore
-        client = ElevenLabs(api_key=api_key)
-        all_voices = client.voices.get_all()
-        print("\nAll available voices:")
-        for v in sorted(all_voices.voices, key=lambda x: x.name):
-            print(f"  {v.voice_id}  {v.name}")
-    except ImportError:
-        print("  elevenlabs not installed — showing recommended voices only.")
-    except Exception as exc:
-        print(f"  Could not fetch voices: {exc}")
-
-    voice_id = input(
-        "\nEnter voice ID to use (or press Enter to use 'Clyde' default): "
+    voice = input(
+        "\nEnter voice to use (or press Enter for 'bm_george'): "
     ).strip()
-    if not voice_id:
-        voice_id = _RECOMMENDED_VOICES["Clyde"]
-        print(f"  Using Clyde: {voice_id}")
+    if not voice:
+        voice = "bm_george"
+        print(f"  Using: {voice}")
 
-    _write_env({"DEFAULT_VOICE_ID": voice_id})
+    _write_env({"KOKORO_VOICE": voice})
 
 
 # ---------------------------------------------------------------------------
@@ -205,7 +185,7 @@ def main():
         print("   Edit .env and set it before running main.py.\n")
 
     _setup_bluetooth()
-    _setup_elevenlabs_voice()
+    _setup_kokoro_voice()
     _generate_chime()
 
     print("\n✓ Setup complete. Run the app with:")

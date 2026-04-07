@@ -16,7 +16,7 @@ When either trigger fires the main loop runs the full pipeline:
   4. Transcribe with Whisper
   5. Parse intent (length + themes)
   6. Generate story via Anthropic API
-  7. Synthesize speech via ElevenLabs (or gTTS)
+  7. Synthesize speech via Kokoro (or gTTS fallback)
   8. Play through Bluetooth speaker via mpv
   9. Clean up temp files
  10. Resume wake-word detection
@@ -173,8 +173,6 @@ def main():
     # Verify required API keys
     if not config.GEMINI_API_KEY:
         logger.error("GEMINI_API_KEY not set in .env — story generation disabled.")
-    if not config.ELEVENLABS_API_KEY:
-        logger.warning("ELEVENLABS_API_KEY not set — will use gTTS fallback.")
 
     # Warm up USB mic detection (logs device index at startup)
     voice_input.get_usb_device_index()
