@@ -72,6 +72,13 @@ def _stop_playback():
     audio_player.stop()
 
 
+def _shutdown_app():
+    """Called from button very-long-press to shut down the app."""
+    logger.info("Shutdown requested via button.")
+    audio_player.stop()
+    _shutdown.set()
+
+
 # ---------------------------------------------------------------------------
 # Pipeline
 # ---------------------------------------------------------------------------
@@ -180,6 +187,7 @@ def main():
     btn = gpio_button.GPIOButton(
         on_short_press=_trigger_story,
         on_long_press=_stop_playback,
+        on_shutdown=_shutdown_app,
     )
     btn.start()
 

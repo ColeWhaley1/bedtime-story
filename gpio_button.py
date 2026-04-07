@@ -1,8 +1,9 @@
 """
 Physical GPIO button monitor (fallback trigger).
 
-Short press (< 2 s): trigger the story pipeline.
-Long press (>= 2 s): stop current playback.
+Short press (< 2 s):  trigger the story pipeline.
+Long press (2–5 s):   stop current playback.
+Very long press (5 s+): shut down the app entirely.
 
 Uses gpiozero with 50 ms debounce. Runs in the main thread via gpiozero's
 background callback threads — no extra thread needed here.
@@ -21,9 +22,11 @@ class GPIOButton:
         self,
         on_short_press: Callable[[], None],
         on_long_press: Callable[[], None],
+        on_shutdown: Callable[[], None],
     ):
         self._on_short = on_short_press
         self._on_long = on_long_press
+        self._on_shutdown = on_shutdown
         self._button = None
         self._press_time: float = 0.0
 
@@ -31,7 +34,6 @@ class GPIOButton:
         """Initialise the GPIO button. Silently skips if gpiozero is unavailable."""
         try:
             from gpiozero import Button
-            import time as _time
 
             btn = Button(
                 config.GPIO_BUTTON_PIN,
@@ -50,6 +52,9 @@ class GPIOButton:
                 if held < 2.0:
                     logger.info("Button: short press (%.2f s) — triggering story.", held)
                     self._on_short()
+                elif held >= 5.0:
+                    logger.info("Button: very long press (%.2f s) — shutting down.", held)
+                    self._on_shutdown()
 
             def _held():
                 logger.info("Button: long press — stopping playback.")
@@ -61,7 +66,7 @@ class GPIOButton:
 
             self._button = btn
             logger.info(
-                "GPIO button active on pin %d (short=story, long=stop).",
+                "GPIO button active on pin %d (short=story, long=stop, 5s=shutdown).",
                 config.GPIO_BUTTON_PIN,
             )
 
