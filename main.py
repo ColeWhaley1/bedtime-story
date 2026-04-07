@@ -16,16 +16,16 @@ When either trigger fires the main loop runs the full pipeline:
   4. Transcribe with Whisper
   5. Parse intent (length + themes)
   6. Generate story via Anthropic API
-  7. Synthesize speech via Kokoro (or gTTS fallback)
-  8. Play through Bluetooth speaker via mpv
-  9. Clean up temp files
- 10. Resume wake-word detection
+  7. Stream-synthesize via Kokoro — play each paragraph as it's ready
+  8. Clean up temp files
+  9. Resume wake-word detection
 
 A long button press at any point calls audio_player.stop().
 All exceptions in the pipeline are caught — the app always returns to idle.
 """
 import logging
 import os
+import queue
 import signal
 import threading
 import time
@@ -122,15 +122,31 @@ def _run_pipeline(ww_detector: wake_word.WakeWordDetector):
         story_text = story_generator.generate(intent)
         story_saver.save(story_text, intent)
 
-        # 6. Synthesize
-        logger.info("Pipeline: synthesizing audio …")
-        audio_path = tts.synthesize(story_text)
+        # 6. Stream-synthesize and play paragraph by paragraph.
+        #    A producer thread synthesizes ahead while the main thread plays,
+        #    so the user hears audio as soon as the first paragraph is ready.
+        logger.info("Pipeline: synthesizing and playing …")
+        chunk_queue: queue.Queue[str | None] = queue.Queue(maxsize=2)
 
-        # 7. Play
-        logger.info("Pipeline: playing story …")
-        audio_player.play(audio_path)   # blocks until done (or stopped)
-        audio_path = None               # play() deletes the file on completion
+        def _producer():
+            try:
+                for path in tts.synthesize_iter(story_text):
+                    chunk_queue.put(path)
+            finally:
+                chunk_queue.put(None)  # sentinel
 
+        producer = threading.Thread(target=_producer, daemon=True)
+        producer.start()
+
+        played_paths: list[str] = []
+        while True:
+            chunk_path = chunk_queue.get()
+            if chunk_path is None:
+                break
+            played_paths.append(chunk_path)
+            audio_player.play(chunk_path)   # blocks until done (or stopped)
+
+        producer.join()
         logger.info("Pipeline: complete.")
 
     except Exception as exc:
@@ -176,6 +192,10 @@ def main():
 
     # Warm up USB mic detection (logs device index at startup)
     voice_input.get_usb_device_index()
+
+    # Pre-load Whisper and Kokoro in background so first story has no cold-start
+    threading.Thread(target=voice_input.warmup, daemon=True, name="WarmupWhisper").start()
+    threading.Thread(target=tts.warmup, daemon=True, name="WarmupKokoro").start()
 
     # Set up wake-word detector
     ww_detector = wake_word.WakeWordDetector(on_detected=_trigger_story)

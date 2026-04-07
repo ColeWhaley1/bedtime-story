@@ -14,7 +14,7 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 KOKORO_VOICE = os.getenv("KOKORO_VOICE", "af_heart")
 KOKORO_LANG = os.getenv("KOKORO_LANG", "a")    # 'a' = American English
 KOKORO_SPEED = float(os.getenv("KOKORO_SPEED", "1.0"))
-WHISPER_MODEL = os.getenv("WHISPER_MODEL", "base")
+WHISPER_MODEL = os.getenv("WHISPER_MODEL", "tiny")
 
 # Hardware
 GPIO_BUTTON_PIN = int(os.getenv("GPIO_BUTTON_PIN", "17"))
@@ -33,9 +33,9 @@ RECORD_SILENCE_THRESHOLD = 500   # RMS below this = silence
 RECORD_SILENCE_DURATION = 1.5    # seconds of silence before stopping
 
 # Story lengths (words)
-STORY_LENGTH_SHORT = 500
-STORY_LENGTH_MEDIUM = 1000
-STORY_LENGTH_LONG = 1500
+STORY_LENGTH_SHORT = 300
+STORY_LENGTH_MEDIUM = 600
+STORY_LENGTH_LONG = 1000
 
 # Paths
 CHIME_PATH = os.path.join(os.path.dirname(__file__), "sounds", "chime.wav")

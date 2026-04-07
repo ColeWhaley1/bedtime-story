@@ -181,6 +181,14 @@ def record() -> Optional[str]:
     return result[0]
 
 
+def warmup():
+    """Pre-load the Whisper model so the first transcription has no cold-start delay."""
+    try:
+        _load_whisper()
+    except Exception as exc:
+        logger.warning("Whisper warmup failed: %s", exc)
+
+
 # ---------------------------------------------------------------------------
 # Transcription
 # ---------------------------------------------------------------------------
