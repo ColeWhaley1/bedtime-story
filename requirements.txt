@@ -1,7 +1,10 @@
 # Core AI / APIs
 google-genai>=1.0.0
-elevenlabs>=1.0.0
 openai-whisper>=20231117
+
+# TTS (local, offline)
+kokoro>=0.9.2
+soundfile>=0.12.1
 
 # Wake word (fully offline)
 openwakeword>=0.6.0

@@ -1,23 +1,36 @@
 """
-Text-to-speech synthesis via ElevenLabs, with gTTS fallback on quota errors.
+Text-to-speech synthesis via locally installed Kokoro, with gTTS fallback.
 
-Saves synthesized audio to a temp file under /tmp/ and returns the path.
+Kokoro runs fully offline on the Pi — no API key required.
+Saves synthesized audio to a temp WAV file under /tmp/ and returns the path.
 The caller is responsible for deleting the file after playback.
 """
 import logging
 import tempfile
 import time
 
+import numpy as np
+import soundfile as sf
+
 import config
 
 logger = logging.getLogger(__name__)
 
-_ELEVENLABS_MODEL = "eleven_monolingual_v1"
+_kokoro_pipeline = None
+
+
+def _get_pipeline():
+    global _kokoro_pipeline
+    if _kokoro_pipeline is None:
+        from kokoro import KPipeline  # type: ignore
+        logger.info("Loading Kokoro TTS pipeline (lang=%s) …", config.KOKORO_LANG)
+        _kokoro_pipeline = KPipeline(lang_code=config.KOKORO_LANG)
+        logger.info("Kokoro pipeline ready.")
+    return _kokoro_pipeline
 
 
 def _output_path() -> str:
-    """Return a unique temp path for the story MP3."""
-    return f"/tmp/story_{int(time.time())}.mp3"
+    return f"/tmp/story_{int(time.time())}.wav"
 
 
 def synthesize(text: str) -> str:
@@ -25,76 +38,56 @@ def synthesize(text: str) -> str:
     Convert text to speech and save to a temp file.
     Returns the file path.
 
-    Primary:  ElevenLabs API  → high-quality, dramatic voice
-    Fallback: gTTS            → free, lower quality, but always works
+    Primary:  Kokoro (local, offline)
+    Fallback: gTTS (requires internet)
     """
     path = _output_path()
 
-    # --- Try ElevenLabs first ---
-    if config.ELEVENLABS_API_KEY and config.DEFAULT_VOICE_ID:
-        try:
-            return _synthesize_elevenlabs(text, path)
-        except Exception as exc:
-            msg = str(exc).lower()
-            if any(kw in msg for kw in ("quota", "limit", "402", "429", "billing")):
-                logger.warning(
-                    "ElevenLabs quota/billing error — falling back to gTTS. (%s)", exc
-                )
-            else:
-                logger.error("ElevenLabs error: %s — falling back to gTTS.", exc)
-    else:
-        logger.warning(
-            "ElevenLabs API key or voice ID not configured — using gTTS fallback."
-        )
+    try:
+        return _synthesize_kokoro(text, path)
+    except Exception as exc:
+        logger.error("Kokoro TTS error: %s — falling back to gTTS.", exc)
 
-    # --- gTTS fallback ---
     return _synthesize_gtts(text, path)
 
 
-def _synthesize_elevenlabs(text: str, path: str) -> str:
-    """Synthesize using the ElevenLabs SDK (v1.x client)."""
-    from elevenlabs.client import ElevenLabs  # type: ignore
-
-    client = ElevenLabs(api_key=config.ELEVENLABS_API_KEY)
+def _synthesize_kokoro(text: str, path: str) -> str:
+    pipeline = _get_pipeline()
 
     logger.info(
-        "Synthesizing via ElevenLabs | voice=%s | model=%s | ~%d words",
-        config.DEFAULT_VOICE_ID,
-        _ELEVENLABS_MODEL,
+        "Synthesizing via Kokoro | voice=%s | speed=%.1f | ~%d words",
+        config.KOKORO_VOICE,
+        config.KOKORO_SPEED,
         len(text.split()),
     )
 
-    audio_stream = client.text_to_speech.convert(
-        text=text,
-        voice_id=config.DEFAULT_VOICE_ID,
-        model_id=_ELEVENLABS_MODEL,
-    )
+    audio_chunks = []
+    for _, _, audio in pipeline(text, voice=config.KOKORO_VOICE, speed=config.KOKORO_SPEED):
+        if audio is not None and len(audio) > 0:
+            audio_chunks.append(audio)
 
-    with open(path, "wb") as f:
-        for chunk in audio_stream:
-            if chunk:
-                f.write(chunk)
+    if not audio_chunks:
+        raise RuntimeError("Kokoro returned no audio.")
 
-    logger.info("ElevenLabs audio saved: %s", path)
+    full_audio = np.concatenate(audio_chunks)
+    sf.write(path, full_audio, samplerate=24000)
+
+    logger.info("Kokoro audio saved: %s", path)
     return path
 
 
 def _synthesize_gtts(text: str, path: str) -> str:
-    """Synthesize using gTTS (Google Text-to-Speech, free tier)."""
     try:
         from gtts import gTTS  # type: ignore
     except ImportError:
-        raise RuntimeError(
-            "Neither ElevenLabs nor gTTS is available. "
-            "Install gTTS: pip install gTTS"
-        )
+        raise RuntimeError("Neither Kokoro nor gTTS is available.")
 
-    logger.info(
-        "Synthesizing via gTTS (fallback) | ~%d words", len(text.split())
-    )
+    # gTTS saves MP3, so adjust path extension
+    mp3_path = path.replace(".wav", ".mp3")
 
+    logger.info("Synthesizing via gTTS (fallback) | ~%d words", len(text.split()))
     tts = gTTS(text=text, lang="en", slow=False)
-    tts.save(path)
+    tts.save(mp3_path)
 
-    logger.info("gTTS audio saved: %s", path)
-    return path
+    logger.info("gTTS audio saved: %s", mp3_path)
+    return mp3_path

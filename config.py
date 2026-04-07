@@ -6,11 +6,14 @@ load_dotenv()
 
 # API Keys
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 
-# Voice / Model
-DEFAULT_VOICE_ID = os.getenv("DEFAULT_VOICE_ID", "")
+# Gemini model
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+
+# Kokoro TTS (local, offline)
+KOKORO_VOICE = os.getenv("KOKORO_VOICE", "af_heart")
+KOKORO_LANG = os.getenv("KOKORO_LANG", "a")    # 'a' = American English
+KOKORO_SPEED = float(os.getenv("KOKORO_SPEED", "1.0"))
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "base")
 
 # Hardware
