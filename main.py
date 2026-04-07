@@ -27,7 +27,6 @@ All exceptions in the pipeline are caught — the app always returns to idle.
 import logging
 import os
 import signal
-import sys
 import threading
 import time
 
@@ -81,6 +80,7 @@ def _run_pipeline(ww_detector: wake_word.WakeWordDetector):
     """Execute one full story pipeline pass."""
     _pipeline_active.set()
     ww_detector.pause()
+    time.sleep(0.4)  # Give ALSA time to fully release the mic stream
 
     audio_path: str | None = None
 
@@ -147,7 +147,7 @@ def _run_pipeline(ww_detector: wake_word.WakeWordDetector):
 # Signal handling
 # ---------------------------------------------------------------------------
 
-def _handle_signal(sig, frame):
+def _handle_signal(sig, _frame):
     logger.info("Received signal %s — shutting down …", sig)
     _shutdown.set()
     audio_player.stop()
@@ -164,8 +164,8 @@ def main():
     audio_player.connect_bluetooth()
 
     # Verify required API keys
-    if not config.ANTHROPIC_API_KEY:
-        logger.error("ANTHROPIC_API_KEY not set in .env — story generation disabled.")
+    if not config.GEMINI_API_KEY:
+        logger.error("GEMINI_API_KEY not set in .env — story generation disabled.")
     if not config.ELEVENLABS_API_KEY:
         logger.warning("ELEVENLABS_API_KEY not set — will use gTTS fallback.")
 

@@ -1,12 +1,12 @@
 """
-Story generation via the Anthropic API.
+Story generation via the Google Gemini API.
 
-Generates an original adult epic fantasy story using Claude, streamed to
+Generates an original adult epic fantasy story using Gemini, streamed to
 handle long outputs without HTTP timeouts.
 """
 import logging
 
-import anthropic
+import google.generativeai as genai
 
 import config
 from intent_parser import StoryIntent
@@ -28,17 +28,18 @@ USER_PROMPT_TEMPLATE = (
     "End at a natural, satisfying resolution."
 )
 
-# Leave generous headroom: 1500 words ≈ 2000 tokens; 8192 is plenty
-_MAX_OUTPUT_TOKENS = 8192
-
 
 def generate(intent: StoryIntent) -> str:
     """
-    Call the Anthropic API and return the complete story text.
+    Call the Gemini API and return the complete story text.
     Uses streaming so long stories don't hit HTTP timeouts.
     Raises on API errors.
     """
-    client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+    genai.configure(api_key=config.GEMINI_API_KEY)
+    model = genai.GenerativeModel(
+        model_name=config.GEMINI_MODEL,
+        system_instruction=SYSTEM_PROMPT,
+    )
 
     user_prompt = USER_PROMPT_TEMPLATE.format(
         word_count=intent.word_count,
@@ -49,30 +50,18 @@ def generate(intent: StoryIntent) -> str:
         "Generating %d-word story | themes: %r | model: %s",
         intent.word_count,
         intent.themes,
-        config.CLAUDE_MODEL,
+        config.GEMINI_MODEL,
     )
 
     story_text = ""
 
     try:
-        with client.messages.stream(
-            model=config.CLAUDE_MODEL,
-            max_tokens=_MAX_OUTPUT_TOKENS,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_prompt}],
-        ) as stream:
-            for text_chunk in stream.text_stream:
-                story_text += text_chunk
+        for chunk in model.generate_content(user_prompt, stream=True):
+            if chunk.text:
+                story_text += chunk.text
 
-        # Verify the model finished naturally
-        final = stream.get_final_message()
-        if final.stop_reason not in ("end_turn", "stop_sequence"):
-            logger.warning(
-                "Unexpected stop_reason=%r — story may be truncated.", final.stop_reason
-            )
-
-    except anthropic.APIError as exc:
-        logger.error("Anthropic API error: %s", exc)
+    except Exception as exc:
+        logger.error("Gemini API error: %s", exc)
         raise
 
     word_count = len(story_text.split())

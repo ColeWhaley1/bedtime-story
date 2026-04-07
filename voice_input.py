@@ -99,12 +99,8 @@ def _rms(chunk_bytes: bytes) -> float:
     return math.sqrt(mean_sq)
 
 
-def record() -> Optional[str]:
-    """
-    Record up to RECORD_MAX_SECONDS from the USB mic.
-    Stops early if silence (RMS < threshold) persists for RECORD_SILENCE_DURATION.
-    Saves to RECORDING_PATH and returns the path, or None on error.
-    """
+def _do_record() -> Optional[str]:
+    """Blocking record implementation — run via record() in a thread."""
     pa = get_pyaudio()
     device_index = get_usb_device_index()
 
@@ -164,6 +160,25 @@ def record() -> Optional[str]:
 
     logger.info("Saved recording: %s (%d chunks)", path, len(frames))
     return path
+
+
+def record() -> Optional[str]:
+    """
+    Record up to RECORD_MAX_SECONDS from the USB mic.
+    Runs the blocking PyAudio loop in a daemon thread so the main thread
+    remains responsive to signals (Ctrl+C) during recording.
+    Returns the saved WAV path, or None on error.
+    """
+    result: list[Optional[str]] = [None]
+
+    def _target():
+        result[0] = _do_record()
+
+    t = threading.Thread(target=_target, daemon=True)
+    t.start()
+    while t.is_alive():
+        t.join(timeout=0.1)
+    return result[0]
 
 
 # ---------------------------------------------------------------------------

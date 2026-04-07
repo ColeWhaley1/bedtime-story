@@ -1,5 +1,5 @@
 # Core AI / APIs
-anthropic>=0.40.0
+google-generativeai>=0.7.0
 elevenlabs>=1.0.0
 openai-whisper>=20231117
 
