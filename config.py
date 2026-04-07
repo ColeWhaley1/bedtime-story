@@ -10,7 +10,7 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 
 # Voice / Model
 DEFAULT_VOICE_ID = os.getenv("DEFAULT_VOICE_ID", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "base")
 
 # Hardware
