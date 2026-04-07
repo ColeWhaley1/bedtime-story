@@ -80,24 +80,34 @@ class WakeWordDetector:
         if device_index is not None:
             stream_kwargs["input_device_index"] = device_index
 
-        try:
-            stream = pa.open(**stream_kwargs)
-        except OSError as exc:
-            logger.error("Wake-word: could not open mic: %s", exc)
-            return
-
         logger.info("Wake-word detection active. Say '%s' to trigger.", config.WAKEWORD_MODEL)
 
+        stream = None
         try:
             while not self._stop.is_set():
                 if self._paused.is_set():
+                    if stream is not None:
+                        stream.stop_stream()
+                        stream.close()
+                        stream = None
                     time.sleep(0.1)
                     continue
+
+                if stream is None:
+                    try:
+                        stream = pa.open(**stream_kwargs)
+                    except OSError as exc:
+                        logger.error("Wake-word: could not open mic: %s", exc)
+                        time.sleep(1)
+                        continue
 
                 try:
                     raw = stream.read(CHUNK_SAMPLES, exception_on_overflow=False)
                 except OSError as exc:
                     logger.warning("Mic read error: %s", exc)
+                    stream.stop_stream()
+                    stream.close()
+                    stream = None
                     time.sleep(0.05)
                     continue
 
@@ -127,8 +137,9 @@ class WakeWordDetector:
                         self._callback()
                         break
         finally:
-            stream.stop_stream()
-            stream.close()
+            if stream is not None:
+                stream.stop_stream()
+                stream.close()
 
     # -----------------------------------------------------------------------
     # Public interface
